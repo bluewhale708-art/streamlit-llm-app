@@ -1,7 +1,3 @@
-from dotenv import load_dotenv
-load_dotenv()
-
-
 import streamlit as st
 import os
 from langchain_openai import ChatOpenAI
@@ -27,11 +23,12 @@ def get_llm_response(user_input, expert_type):
     }
     
     try:
+        api_key = os.environ.get("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
         
         llm = ChatOpenAI(
             model_name="gpt-4o-mini",
             temperature=0.7,
-            api_key=os.environ.get("OPENAI_API_KEY")
+            api_key=api_key
         )
         
         
@@ -101,8 +98,9 @@ def main():
             st.warning("質問内容を入力してください。")
             return
             
-        if not os.environ.get("OPENAI_API_KEY"):
-            st.error("OpenAI APIキーが設定されていません。環境変数`OPENAI_API_KEY`を設定してください。")
+        api_key = os.environ.get("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+        if not api_key:
+            st.error("OpenAI APIキーが設定されていません。Streamlit Cloudの場合はSecretsで`OPENAI_API_KEY`を設定してください。")
             return
         
         

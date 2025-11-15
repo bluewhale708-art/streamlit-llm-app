@@ -1,16 +1,24 @@
 import os
 import streamlit as st
-from dotenv import load_dotenv
 
 # LangChain（OpenAI用）
 from langchain_openai import ChatOpenAI
-from langchain.schema import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 
 # ================================
 # 1. APIキーの読み込み
 # ================================
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
+def get_api_key():
+    """
+    環境変数またはStreamlit SecretsからAPIキーを取得
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        try:
+            api_key = st.secrets["OPENAI_API_KEY"]
+        except:
+            pass
+    return api_key
 
 # ================================
 # 2. LLMに問い合わせる関数
@@ -20,6 +28,10 @@ def ask_llm(user_text: str, expert_type: str) -> str:
     入力テキスト（user_text）と専門家タイプ（expert_type）を受け取り、
     LLM からの回答テキストを返す関数
     """
+    # APIキーの取得
+    api_key = get_api_key()
+    if not api_key:
+        return "エラー: OpenAI APIキーが設定されていません。環境変数またはStreamlit Secretsで設定してください。"
 
     # 専門家の種類ごとにプロンプトを切り替える
     if expert_type == "健康アドバイザー":
@@ -29,22 +41,26 @@ def ask_llm(user_text: str, expert_type: str) -> str:
     else:
         system_prompt = "あなたは丁寧に回答するアシスタントです。"
 
-    # LangChain の LLM モデルを準備
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        openai_api_key=api_key,
-        temperature=0.5
-    )
+    try:
+        # LangChain の LLM モデルを準備
+        llm = ChatOpenAI(
+            model="gpt-4o-mini",
+            openai_api_key=api_key,
+            temperature=0.5
+        )
 
-    # LLM に渡すメッセージ（system + user）
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_text)
-    ]
+        # LLM に渡すメッセージ（system + user）
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_text)
+        ]
 
-    # LLM に問い合わせて回答を取得
-    response = llm.invoke(messages)
-    return response.content
+        # LLM に問い合わせて回答を取得
+        response = llm.invoke(messages)
+        return response.content
+    
+    except Exception as e:
+        return f"エラーが発生しました: {str(e)}"
 
 
 # ================================
@@ -79,9 +95,14 @@ def main():
         if user_input.strip() == "":
             st.warning("入力欄が空です。何か入力してください。")
         else:
-            answer = ask_llm(user_input, expert)
-            st.write("### ▼ 回答内容")
-            st.write(answer)
+            # APIキーの確認
+            if not get_api_key():
+                st.error("⚠️ OpenAI APIキーが設定されていません。\n\nStreamlit Cloudの場合：\n1. アプリの設定画面を開く\n2. Secretsタブを選択\n3. 以下を追加:\n```\nOPENAI_API_KEY = \"your-api-key-here\"\n```")
+            else:
+                with st.spinner("回答を生成中..."):
+                    answer = ask_llm(user_input, expert)
+                st.write("### ▼ 回答内容")
+                st.write(answer)
 
 
 # メイン処理
